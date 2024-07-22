@@ -6,6 +6,7 @@ require github.com/qtui/qtqt v0.0.0
 
 replace github.com/qtui/qtqt => ../qtqt
 
+
 require github.com/qtui/miscutil v0.0.0
 
 require (
@@ -31,6 +32,7 @@ replace github.com/qtui/qtclzsz => ../qtclzsz
 require (
 	github.com/kitech/gopp/cgopp v0.0.0
 	github.com/qtui/qtclzsz v0.0.0
+    
 )
 
 replace github.com/kitech/gopp => ../../goplusplus

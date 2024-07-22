@@ -29,6 +29,9 @@ func LoadAllQtSymbols(stub string) []string {
 	}
 	qtsymbolsloaded = true
 
+	log.Println(qtsymbolsgobgz == nil, len(qtsymbolsgobgz))
+	defer func() { qtsymbolsgobgz = nil }()
+
 	// loadcacheok := loadsymbolsjson()
 	loadcacheok := loadsymbolsgob()
 
@@ -102,7 +105,7 @@ func implLoadAllQtSymbols(stub string) []string {
 		}
 		return
 	})
-	log.Println(gopp.Lenof(signtx), len(QtSymbols), time.Since(nowt)) // about 1.1s
+	log.Println(gopp.Lenof(signtx), "clz", len(QtSymbols), "all", qtallsyms, "Weaks", qtweaksyms, time.Since(nowt)) // about 1.1s
 	signts := gopp.IV2Strings(signtx.([]any))
 
 	// qtsymbolsraw = signts

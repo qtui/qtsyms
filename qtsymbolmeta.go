@@ -12,6 +12,8 @@ import (
 // but lack some info like, return type, static, class size
 var QtSymbols = map[string][]QtMethod{} // class name => struct type
 var QtClassSizes = map[string]int{}     // todo
+var qtweaksyms int
+var qtallsyms int
 
 type QtMethod struct {
 	// reflect.Method
@@ -28,7 +30,8 @@ type QtMethod struct {
 	// TODO how
 	// Rety string // `json:"R"`
 	// Size int    // `json:"Z"`
-	St int // `json:"T"` //bool
+	St byte // `json:"T"` //bool
+	Wk byte
 }
 
 //	func (me ccMethod) Symbol(clz string) string {
@@ -45,11 +48,12 @@ var Symdedupedcnt = 0
 func Addsymrawline(qtmodname string, line string) {
 	flds := strings.Split(line, " ")
 	// log.Println(line, flds)
+	symty := flds[len(flds)-2]
 	sym := gopp.LastofGv(flds)
 	// log.Println(sym)
-	addqtsym(qtmodname, sym)
+	addqtsym(qtmodname, sym, symty)
 }
-func addqtsym(qtmodname, symname string) {
+func addqtsym(qtmodname, symname string, symty string) {
 	// log.Println("demangle...", len(symname), symname)
 	sgnt, ok := Demangle(symname)
 	if strings.HasPrefix(symname, "GCC_except") {
@@ -119,6 +123,9 @@ func addqtsym(qtmodname, symname string) {
 	mtho.Name = strings.Title(mthname)
 	// mtho.Index = len(mths)
 	// mtho.PkgPath = qtmodname
+	mtho.Wk = gopp.IfElse2(symty == "t", byte(1), 0)
+	qtweaksyms += gopp.IfElse2(mtho.Wk == 1, 1, 0)
+	qtallsyms += 1
 
 	mths, ok := QtSymbols[clzname]
 	mths = append(mths, mtho)
