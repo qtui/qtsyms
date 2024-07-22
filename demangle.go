@@ -10,7 +10,7 @@ import (
 
 #cgo LDFLAGS: -lc++
 
-extern void* _Z20cxxabi__cxa_demanglePcS_PmPi(void*, void*, void*, void*);
+// extern void* _Z20cxxabi__cxa_demanglePcS_PmPi(void*, void*, void*, void*);
 */
 import "C"
 
@@ -21,10 +21,12 @@ func Demangle(name string) (string, bool) {
 	// var reslen usize = 300
 	var resok int
 	var rv voidptr
-	if gopp.RandNum(0, 2) == 1 {
+	if false && gopp.RandNum(0, 2) == 0 {
 		// res4c := cgopp.Mallocgc(int(reslen))
 		// 如果长度不够会realloc，传递go分配的内存则crash
-		rv = C._Z20cxxabi__cxa_demanglePcS_PmPi(name4c, nil, nil, (voidptr)(&resok))
+		fnsym := cgopp.Dlsym0("__Z20cxxabi__cxa_demanglePcS_PmPi")
+		// rv = C._Z20cxxabi__cxa_demanglePcS_PmPi(name4c, nil, nil, (voidptr)(&resok))
+		rv = cgopp.Litfficallg(fnsym, name4c, nil, nil, (voidptr)(&resok))
 	} else {
 		fnsym := cgopp.Dlsym0("__cxa_demangle")
 		rv = cgopp.Litfficallg(fnsym, name4c, nil, nil, (voidptr)(&resok))
