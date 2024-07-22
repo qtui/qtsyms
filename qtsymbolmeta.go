@@ -30,8 +30,9 @@ type QtMethod struct {
 	// TODO how
 	// Rety string // `json:"R"`
 	// Size int    // `json:"Z"`
-	St byte // `json:"T"` //bool
-	Wk byte
+	St  byte // `json:"T"` //bool
+	Wk  byte
+	Rov byte // return class record value
 }
 
 //	func (me ccMethod) Symbol(clz string) string {
@@ -78,10 +79,13 @@ func addqtsym(qtmodname, symname string, symty string) {
 	if strings.Contains(sgnt, "operator+=") {
 		return
 	}
+	if strings.Contains(sgnt, "operator<<") {
+		return
+	}
 	if strings.Contains(sgnt, "anonymous namespace") {
 		return
 	}
-	if strings.Count(sgnt, "<") > 0 {
+	if strings.Count(sgnt, "<") > 0 && !strings.Contains(sgnt, "QFlags") {
 		return
 	}
 

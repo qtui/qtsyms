@@ -16,18 +16,20 @@ import (
 )
 
 var qtsymbolsloaded = false
+var InitLoaded = false
 
 // var qtsymbolsraw []string
 
 // TODO 这个非常耗时
 // 返回匹配的值
-func LoadAllQtSymbols(stub string) []string {
+func LoadAllQtSymbols() []string {
 	log.Println(qtlibpaths)
 	if qtsymbolsloaded {
 		log.Println("Already loaded???", len(QtSymbols))
 		return nil
 	}
 	qtsymbolsloaded = true
+	InitLoaded = true
 
 	log.Println(qtsymbolsgobgz == nil, len(qtsymbolsgobgz))
 	defer func() { qtsymbolsgobgz = nil }()
@@ -38,14 +40,14 @@ func LoadAllQtSymbols(stub string) []string {
 	if loadcacheok {
 		return nil
 	} else {
-		rets := implLoadAllQtSymbols(stub)
+		rets := implLoadAllQtSymbols()
 		savesymbolsjson()
 		savesymbolsgob()
 		return rets
 	}
 }
 
-func implLoadAllQtSymbols(stub string) []string {
+func implLoadAllQtSymbols() []string {
 	// log.Println(qtlibpaths)
 	var nowt = time.Now()
 
@@ -94,13 +96,6 @@ func implLoadAllQtSymbols(stub string) []string {
 				continue
 			}
 
-			if strings.Contains(line, stub) {
-				// log.Println(line)
-				name := gopp.Lastof(strings.Split(line, " ")).Str()
-				signt, ok := Demangle(name)
-				log.Println(name, ok, signt)
-				rets = append(rets, name, signt)
-			}
 			Addsymrawline(filepath.Base(vx.(string)), line)
 		}
 		return
@@ -173,7 +168,7 @@ func loadsymbolsgob() bool {
 	err = deco.Decode(&QtSymbols)
 	gopp.ErrPrint(err)
 	// 37.778846ms - 45.944927ms
-	log.Println("gobdec", time.Since(nowt), qtsymcachenamegob)
+	log.Println("gobdec", time.Since(nowt), qtsymcachenamegob, gopp.FileSize(qtsymcachenamegob))
 
 	return err == nil
 }
