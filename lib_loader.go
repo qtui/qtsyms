@@ -1,14 +1,33 @@
 package qtsyms
 
 import (
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/kitech/gopp"
+	"github.com/kitech/gopp/cgopp"
 )
 
 var qtlibpaths = map[string]string{}
+var mainqtmods = []string{"Core", "Gui", "Widgets", "Network", "Qml", "Quick", "QuickControls2", "QuickWidgets"}
+
+func filterQtsoimages(soimgs []string) (rets []string) {
+	gopp.Mapdo(soimgs, func(vx any) any {
+		v := vx.(string)
+		bname := filepath.Base(v)
+		if strings.HasPrefix(bname, "Qt") { // macos
+			rets = append(rets, v)
+		} else if strings.HasPrefix(bname, "libQt") {
+			rets = append(rets, v)
+		}
+		return nil
+	})
+	return
+}
 
 // libQt6Core.so => Core
 func qtlibname2mod(nameorpath string) string {
@@ -42,6 +61,52 @@ func qtlibname2link(nameorpath string) string {
 		bname = bname[3:]
 	}
 	return bname
+}
+
+func FindAllQtlibs() (rets []string) {
+	nowt := time.Now()
+	// about 143.562879ms !!! not good!!!
+	defer func() { log.Println(gopp.MyFuncName(), time.Since(nowt), len(rets)) }()
+	if runtime.GOOS == "android" {
+		return androidFindAllQtlibs()
+	}
+	return desktopFindAllQtlibs()
+}
+func desktopFindAllQtlibs() (rets []string) {
+	var names []string
+	for _, qtmod := range mainqtmods {
+		v := qtmod2rclibnames(qtmod, true)
+		names = append(names, v...)
+	}
+	libdirs := getsyslibdirs()
+	for i, libdir := range libdirs {
+		_ = i
+		for j, name := range names {
+			_ = j
+			path := filepath.Join(libdir, name)
+			if gopp.FileExist2(path) {
+				rets = append(rets, path)
+			}
+		}
+	}
+	if len(libdirs) == 0 {
+		log.Println("allqtlibs", len(libdirs), libdirs, len(libdirs))
+	}
+	return
+}
+func androidFindAllQtlibs() (rets []string) {
+	argatfn := cgopp.Dlsym0("qtapp_argat")
+	argptr := cgopp.FfiCall[voidptr](argatfn, 0)
+	androidqtentrylibfile := cgopp.GoString(argptr)
+	cgopp.Cfreepg(argptr)
+
+	// /data/~~~***/lib/arm64
+	applibdir := filepath.Dir(androidqtentrylibfile)
+	libfiles, err := filepath.Glob(applibdir + "/*")
+	gopp.ErrPrint(err, androidqtentrylibfile, applibdir)
+
+	libfiles = filterQtsoimages(libfiles)
+	return libfiles
 }
 
 // nameorpath

@@ -13,6 +13,7 @@ import (
 
 	"github.com/ebitengine/purego"
 	"github.com/kitech/gopp"
+	"github.com/kitech/gopp/cgopp"
 )
 
 var qtsymbolsloaded = false
@@ -105,6 +106,16 @@ func implLoadAllQtSymbols() []string {
 
 	// qtsymbolsraw = signts
 	return signts
+}
+
+func implLoadAllQtSymbolsByGonm() []string {
+	shlibs := cgopp.DyldImagesSelf()
+	qtshlibs := filterQtsoimages(shlibs)
+	if len(qtshlibs) == 0 {
+		qtshlibs = FindAllQtlibs()
+	}
+
+	return nil
 }
 
 // /// structured symbols cache
