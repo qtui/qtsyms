@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/kitech/gopp"
 )
@@ -12,8 +13,32 @@ import (
 // but lack some info like, return type, static, class size
 var QtSymbols = map[string][]QtMethod{} // class name => struct type
 var QtClassSizes = map[string]int{}     // todo
-var qtweaksyms int
-var qtallsyms int
+var Qtsymsts = Stats{}
+
+type Stats struct {
+	ClassCnt int
+	TotalCnt int
+	WeakCnt  int
+	DedupCnt int
+
+	Symmemsz   int
+	Loadsymdur time.Duration
+	Savesymdur time.Duration
+
+	Errors []error
+}
+
+func ClearSymbols() {
+	for k := range QtSymbols {
+		delete(QtSymbols, k)
+	}
+	for k := range Symdedups {
+		delete(Symdedups, k)
+	}
+	Qtsymsts = Stats{}
+	qtsymbolsloaded = false
+	InitLoaded = false
+}
 
 type QtMethod struct {
 	// reflect.Method
@@ -44,7 +69,6 @@ func (me QtMethod) Static() bool { return me.St == 1 }
 func (me QtMethod) Const() bool { return strings.HasPrefix(me.CCSym, "_ZNK") }
 
 var Symdedups = map[uint64]int{} // sym crc =>
-var Symdedupedcnt = 0
 
 func Addsymrawline(qtmodname string, line string) {
 	flds := strings.Split(line, " ")
@@ -115,7 +139,7 @@ func addqtsym(qtmodname, symname string, symty string) {
 	symcrc := gopp.Crc64Str(symname)
 	if _, ok := Symdedups[symcrc]; ok {
 		// log.Println("already have", sgnt, len(dedups))
-		Symdedupedcnt++
+		Qtsymsts.DedupCnt++
 		return
 	}
 	Symdedups[symcrc] = 1
@@ -128,12 +152,13 @@ func addqtsym(qtmodname, symname string, symty string) {
 	// mtho.Index = len(mths)
 	// mtho.PkgPath = qtmodname
 	mtho.Wk = gopp.IfElse2(symty == "t", byte(1), 0)
-	qtweaksyms += gopp.IfElse2(mtho.Wk == 1, 1, 0)
-	qtallsyms += 1
+	Qtsymsts.WeakCnt += gopp.IfElse2(mtho.Wk == 1, 1, 0)
+	Qtsymsts.TotalCnt += 1
 
 	mths, ok := QtSymbols[clzname]
 	mths = append(mths, mtho)
 	QtSymbols[clzname] = mths
+	Qtsymsts.ClassCnt += gopp.IfElse2(ok, 0, 1)
 }
 
 func SplitMethod(s string) (string, string) {

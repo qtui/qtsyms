@@ -3,12 +3,14 @@ package qtsyms
 import (
 	"bytes"
 	"cmd/goinct"
+	"compress/gzip"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,10 +19,9 @@ import (
 	"github.com/kitech/gopp/cgopp"
 )
 
+// 为什么是两个变量
 var qtsymbolsloaded = false
 var InitLoaded = false
-
-// var qtsymbolsraw []string
 
 // TODO 这个非常耗时
 // 返回匹配的值
@@ -36,21 +37,38 @@ func LoadAllQtSymbols() []string {
 
 	log.Println(qtsymbolsgobgz == nil, len(qtsymbolsgobgz))
 	defer func() { qtsymbolsgobgz = nil }()
+	defer func() {
+		Qtsymsts.Symmemsz = gopp.DeepSizeof(QtSymbols, 0)
+		Qtsymsts.ClassCnt = len(QtSymbols)
+	}()
 
+	var nowt = time.Now()
 	// loadcacheok := loadsymbolsjson()
 	loadcacheok := loadsymbolsgob()
+	Qtsymsts.Loadsymdur = time.Since(nowt)
+
+	if !loadcacheok && runtime.GOOS == "android" {
+		nowt = time.Now()
+		loadcacheok = loadsymbolsembedgob()
+		// loadcacheok = loadsymbolsembedjson()
+		Qtsymsts.Loadsymdur = time.Since(nowt)
+	}
 
 	if loadcacheok {
 		return nil
 	} else {
 		var rets []string
+		nowt = time.Now()
 		if true {
 			rets = implLoadAllQtSymbolsByGonm()
 		} else {
 			rets = implLoadAllQtSymbolsByCmdnm()
 		}
+		Qtsymsts.Loadsymdur = time.Since(nowt)
+		nowt = time.Now()
 		savesymbolsjson()
 		savesymbolsgob()
+		Qtsymsts.Savesymdur = time.Since(nowt)
 		return rets
 	}
 }
@@ -110,7 +128,7 @@ func implLoadAllQtSymbolsByCmdnm() []string {
 		}
 		return
 	})
-	log.Println(gopp.Lenof(signtx), "clz", len(QtSymbols), "all", qtallsyms, "Weaks", qtweaksyms, time.Since(nowt)) // about 1.1s
+	log.Println(gopp.Lenof(signtx), "clz", len(QtSymbols), "all", Qtsymsts.TotalCnt, "Weaks", Qtsymsts.WeakCnt, time.Since(nowt)) // about 1.1s
 	signts := gopp.IV2Strings(signtx.([]any))
 
 	// qtsymbolsraw = signts
@@ -126,7 +144,11 @@ func implLoadAllQtSymbolsByGonm() []string {
 
 	for _, shlib := range qtshlibs {
 		log.Println("run NMget...", shlib)
-		rawsyms := goinct.NMget(shlib)
+		rawsyms, err := goinct.NMget(shlib)
+		if err != nil {
+			Qtsymsts.Errors = append(Qtsymsts.Errors, err)
+			continue
+		}
 		for _, rawsym := range rawsyms {
 			// Addsymrawline("", rawsym.Name)
 			addqtsym("", rawsym.Name, string(rawsym.Code))
@@ -201,3 +223,45 @@ func loadsymbolsgob() bool {
 
 	return err == nil
 }
+
+func loadsymbolsembedgob() bool {
+	var ebdata = qtsymbolsgobgz
+	gzr, err := gzip.NewReader(bytes.NewBuffer(ebdata))
+	gopp.ErrPrint(err, len(ebdata))
+	if err != nil {
+		Qtsymsts.Errors = append(Qtsymsts.Errors, err)
+		return false
+	}
+	defer gzr.Close()
+
+	deco := gob.NewDecoder(gzr)
+	err = deco.Decode(&QtSymbols)
+	gopp.ErrPrint(err, len(ebdata))
+	if err != nil {
+		Qtsymsts.Errors = append(Qtsymsts.Errors, err)
+		return false
+	}
+
+	return true
+}
+
+// func loadsymbolsembedjson() bool {
+// 	var ebdata = qtsymbolsjsongz
+// 	gzr, err := gzip.NewReader(bytes.NewBuffer(ebdata))
+// 	gopp.ErrPrint(err, len(ebdata))
+// 	if err != nil {
+// 		Qtsymsts.Errors = append(Qtsymsts.Errors, err)
+// 		return false
+// 	}
+// 	defer gzr.Close()
+
+// 	deco := json.NewDecoder(gzr)
+// 	err = deco.Decode(&QtSymbols)
+// 	gopp.ErrPrint(err, len(ebdata))
+// 	if err != nil {
+// 		Qtsymsts.Errors = append(Qtsymsts.Errors, err)
+// 		return false
+// 	}
+
+// 	return true
+// }
