@@ -2,6 +2,7 @@ package qtsyms
 
 import (
 	"bytes"
+	"cmd/goinct"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,7 @@ var InitLoaded = false
 
 // TODO 这个非常耗时
 // 返回匹配的值
+// 这个需要客户端手工调用，以后可能以某种方式自动调用
 func LoadAllQtSymbols() []string {
 	log.Println(qtlibpaths)
 	if qtsymbolsloaded {
@@ -41,14 +43,21 @@ func LoadAllQtSymbols() []string {
 	if loadcacheok {
 		return nil
 	} else {
-		rets := implLoadAllQtSymbols()
+		var rets []string
+		if true {
+			rets = implLoadAllQtSymbolsByGonm()
+		} else {
+			rets = implLoadAllQtSymbolsByCmdnm()
+		}
 		savesymbolsjson()
 		savesymbolsgob()
 		return rets
 	}
 }
 
-func implLoadAllQtSymbols() []string {
+// by search, by cmdline nm
+// should deprecated because we hav by gonm version
+func implLoadAllQtSymbolsByCmdnm() []string {
 	// log.Println(qtlibpaths)
 	var nowt = time.Now()
 
@@ -113,6 +122,15 @@ func implLoadAllQtSymbolsByGonm() []string {
 	qtshlibs := filterQtsoimages(shlibs)
 	if len(qtshlibs) == 0 {
 		qtshlibs = FindAllQtlibs()
+	}
+
+	for _, shlib := range qtshlibs {
+		log.Println("run NMget...", shlib)
+		rawsyms := goinct.NMget(shlib)
+		for _, rawsym := range rawsyms {
+			// Addsymrawline("", rawsym.Name)
+			addqtsym("", rawsym.Name, string(rawsym.Code))
+		}
 	}
 
 	return nil
